@@ -12,7 +12,9 @@ Installation
 in your code (this works particularly well with
 [git submodules](http://git-scm.com/book/en/Git-Tools-Submodules)):
 
-    #include <apathy/path.hpp>
+```C++
+#include <apathy/path.hpp>
+```
 
 It imports a single member `Path` in the `apathy` namespace.
 
@@ -21,23 +23,44 @@ Usage
 Most of the path manipulators return a reference to the current path, so that
 they can be chained:
 
-    /* Check if ./foo/bar exists */
-    Path::cwd().relative("foo").relative("bar").exists();
-    /* Make a sanitized absolute directory for ./foo///../a/b */
-    Path("./foo///../a/b").absolute().sanitize();
+```C++
+/* Check if ./foo/bar exists */
+Path::cwd().relative("foo").relative("bar").exists();
+/* Make a sanitized absolute directory for ./foo///../a/b */
+Path("./foo///../a/b").absolute().sanitize();
+```
 
 Operators
 =========
 Path objects support the operators `==`, `!=`, `<<` (which appends to the path)
 and `=`:
 
-    /* Makes sure they're exact matches */
-    Path("./foo") == "./foo";
-    Path("./foo") != "foo";
+```C++
+/* Makes sure they're exact matches */
+Path("./foo") == "./foo";
+Path("./foo") != "foo";
 
-    /* Appends to the path */
-    Path p("foo");
-    p << "bar" << 5 << 3.1459 << Path("what");
+/* Appends to the path */
+Path p("foo");
+p << "bar" << 5 << 3.1459 << Path("what");
+```
+
+In addition to these comparators, there's also an `equivalent` method that
+checks whether the two paths refer to the same resource. To do so, copies of
+both are made absolute and sanitized and then a strict string comparison is
+made:
+
+```C++
+/* These are equivalent, but not equal */
+Path a("./foo////a/b/./d/../c");
+Path b("foo/a/b/c");
+
+/* These are true */
+a.equivalent(b);
+b.equivalent(a);
+/* This is not */
+a == b;
+```
 
 Modifiers
 =========
@@ -46,50 +69,64 @@ reference to the modified path so that they can be chained:
 
 - `append` -- appends a path segment to the current path:
 
-    /* Create a path to foo/bar/baz
-    Path p("foo");
-    std::cout << p.append("bar").append("baz").string() << std::endl;
-    /* Now p is "foo/bar/baz" */
+```C++
+/* Create a path to foo/bar/baz
+Path p("foo");
+std::cout << p.append("bar").append("baz").string() << std::endl;
+/* Now p is "foo/bar/baz" */
+```
 
 - `relative` -- evaluates one path relative to another. If the second path is
     an absolute path, then updates the object to point to that path:
 
-    /* Gives "foo/bar/whiz" */
-    Path("foo").relative("bar/whiz");
-    /* Gives "/bar/whiz" */
-    Path("foo").relative("/bar/whiz");
+```C++
+/* Gives "foo/bar/whiz" */
+Path("foo").relative("bar/whiz");
+/* Gives "/bar/whiz" */
+Path("foo").relative("/bar/whiz");
+```
 
 - `up` -- move to the parent directory:
     
-    /* Gives /foo/bar/ */
-    Path("foo/bar/whiz").up();
+```C++
+/* Gives /foo/bar/ */
+Path("foo/bar/whiz").up();
+```
 
 - `absolute` -- convert the path to an absolute path. If it's a relative path,
     then it's evaluated relative to the current working directory:
 
-    /* Gives <cwd>/foo/bar */
-    Path("foo/bar").absolute();
-    /* Gives /foo/bar */
-    Path("/foo/bar").absolute();
+```C++
+/* Gives <cwd>/foo/bar */
+Path("foo/bar").absolute();
+/* Gives /foo/bar */
+Path("/foo/bar").absolute();
+```
 
 - `sanitize` -- clean up repeated separators, evaluate `..` and `.`. If `..` is
     used to exceed the segments in a relative path, it is transformed into an
     absolute path. Otherwise, if it was a relative path, it remains a relative
     path afterwards:
 
-    /* Gives a/b/c/ */
-    Path("foo/.././a////b/d/../c");
+```C++
+/* Gives a/b/c/ */
+Path("foo/.././a////b/d/../c");
+```
 
 - `directory` -- ensure the path has a trailing separator to indicate it's a
     directory:
 
-    /* Gives a/b/c/ */
-    Path("a/b/c").directory();
+```C++
+/* Gives a/b/c/ */
+Path("a/b/c").directory();
+```
 
 - `trim` -- removes any trailing separators from the path:
 
-    /* Gives a/b/c */
-    Path("a/b/c/////").trim();
+```C++
+/* Gives a/b/c */
+Path("a/b/c/////").trim();
+```
 
 Copiers
 =======
@@ -99,18 +136,22 @@ methods return a modified copy of the instance, leaving the original unchanged:
 - `copy` -- an easy shorthand for creating a copy of the path object, since
     it's common to chain methods. Consider:
 
-    /* I'd like to leave the original path unchanged */
-    Path p("foo/bar");
-    p.copy().absolute();
+```C++
+/* I'd like to leave the original path unchanged */
+Path p("foo/bar");
+p.copy().absolute();
 
-    /* Equivalent to... */
-    Path(p).absolute();
+/* Equivalent to... */
+Path(p).absolute();
+```
 
 - `parent` -- returns a new path pointing to the parent directory:
 
-    /* Points to foo/bar, leaving original unchanged */
-    Path p("foo/bar/whiz");
-    p.parent();
+```C++
+/* Points to foo/bar, leaving original unchanged */
+Path p("foo/bar/whiz");
+p.parent();
+```
 
 Tests
 =====
