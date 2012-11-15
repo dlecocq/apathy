@@ -28,7 +28,7 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(cwd == empty);
     }
 
-    SECTION("operator<<", "Make sure operator<< works correctly") {
+    SECTION("operator+=", "Make sure operator<< works correctly") {
         Path root("/");
         root << "hello" << "how" << "are" << "you";
         REQUIRE(root.string() == "/hello/how/are/you");
@@ -104,19 +104,19 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(path.exists());
 
         /* Now touch some files in this area */
-        Path::touch(path.copy().append("a"));
-        Path::touch(path.copy().append("b"));
-        Path::touch(path.copy().append("c"));
+        Path::touch(Path(path).append("a"));
+        Path::touch(Path(path).append("b"));
+        Path::touch(Path(path).append("c"));
 
         /* Now list that directory */
         std::vector<Path> files = Path::listdir(path);
         REQUIRE(files.size() == 3);
         REQUIRE(files[0].absolute().string() ==
-            path.copy().absolute().append("a").string());
+            Path(path).absolute().append("a").string());
         REQUIRE(files[1].absolute().string() ==
-            path.copy().absolute().append("b").string());
+            Path(path).absolute().append("b").string());
         REQUIRE(files[2].absolute().string() ==
-            path.copy().absolute().append("c").string());
+            Path(path).absolute().append("c").string());
 
         REQUIRE(Path::rmdirs("foo"));
         REQUIRE(!Path("foo").exists());
