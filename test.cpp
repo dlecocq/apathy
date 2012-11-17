@@ -17,7 +17,7 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(cwd.is_absolute());
         REQUIRE(!empty.is_absolute());
         REQUIRE(empty.absolute() == cwd);
-        REQUIRE(Path() == "");
+        REQUIRE(Path() == ".");
     }
 
     SECTION("operator=", "Make sure assignment works as expected") {
@@ -153,5 +153,14 @@ TEST_CASE("path", "Path functionality works as advertised") {
         a = "../foo/bar/";
         b = Path::cwd().parent().append("foo").append("bar").directory();
         REQUIRE(a.equivalent(b));
+    }
+
+    SECTION("split", "Make sure we can get segments out") {
+        Path a("foo/bar/baz");
+        std::vector<Path::Segment> segments(a.split());
+        REQUIRE(segments.size() == 3);
+        REQUIRE(segments[0].segment == "foo");
+        REQUIRE(segments[1].segment == "bar");
+        REQUIRE(segments[2].segment == "baz");
     }
 }

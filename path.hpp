@@ -4,8 +4,10 @@
 /* C++ includes */
 #include <vector>
 #include <string>
+#include <istream>
 #include <sstream>
 #include <iostream>
+#include <iterator>
 
 /* C includes */
 #include <errno.h>
@@ -25,6 +27,14 @@ namespace apathy {
 #else
         static const char separator = '/';
 #endif
+        /* A class meant to contain path segments */
+        struct Segment {
+            /* The actual string segment */
+            std::string segment;
+            friend std::istream& operator>>(std::istream& stream, Segment& s) {
+                return std::getline(stream, s.segment, separator);
+            }
+        };
 
         /**********************************************************************
          * Constructors
@@ -33,7 +43,7 @@ namespace apathy {
         /* Default constructor
          *
          * Points to current directory */
-        Path(const std::string& path=""): path(path) {}
+        Path(const std::string& path="."): path(path) {}
 
         /* Our generalized constructor.
          *
@@ -52,7 +62,7 @@ namespace apathy {
         bool operator==(const Path& other) { return path == other.path; }
 
         /* Check if the paths are not exactly the same */
-        bool operator!=(const Path& other) { return path != other.path; }
+        bool operator!=(const Path& other) { return ! (*this == other); }
 
         /* Append the provided segment to the path as a directory. This is the
          * same as append(segment)
@@ -105,8 +115,10 @@ namespace apathy {
 
         /* Sanitize this path
          *
-         * This 1) replaces runs of consecutive separators with a single
-         * separator, 2) evaluates '..' to refer to the parent directory, and
+         * This...
+         *
+         * 1) replaces runs of consecutive separators with a single separator
+         * 2) evaluates '..' to refer to the parent directory, and
          * 3) strips out '/./' as referring to the current directory
          *
          * If the path was absolute to begin with, it will be absolute 
@@ -121,7 +133,12 @@ namespace apathy {
          * If it already does, this does not affect the path */
         Path& directory();
 
-        /* Trim this path of trailing slashes */
+        /* Trim this path of trailing separators, up to the leading separator.
+         * For example, on *nix systems:
+         *
+         *   assert(Path("///").trim() == "/");
+         *   assert(Path("/foo//").trim() == "/foo");
+         */
         Path& trim();
 
         /**********************************************************************
@@ -133,6 +150,13 @@ namespace apathy {
          * Returns a new Path object referring to the parent directory. To
          * move _this_ path to the parent directory, use the `up` function */
         Path parent() const { return Path(Path(*this).up()); }
+
+        /**********************************************************************
+         * Member Utility Methods
+         *********************************************************************/
+
+        /* Returns a vector of each of the path segments in this path */
+        std::vector<Segment> split() const;
 
         /**********************************************************************
          * Type Tests
@@ -203,7 +227,7 @@ namespace apathy {
 
     /* Constructor */
     template <class T>
-    inline Path::Path(const T& p): path("") {
+    inline Path::Path(const T& p) {
         std::stringstream ss;
         ss << p;
         path = ss.str();
@@ -224,8 +248,8 @@ namespace apathy {
 
     inline bool Path::equivalent(const Path& other) {
         /* Make copies of both paths, sanitize, and ensure they're equal */
-        return Path(path).absolute().sanitize() == Path(
-            other).absolute().sanitize();
+        return Path(path).absolute().sanitize() ==
+               Path(other).absolute().sanitize();
     }
 
     /**************************************************************************
@@ -235,8 +259,9 @@ namespace apathy {
         /* First, check if the last character is the separator character.
          * If not, then append one and then the segment. Otherwise, just
          * the segment */
-        trim();
-        path.push_back(separator);
+        if (!trailing_slash()) {
+            path.push_back(separator);
+        }
         path.append(segment.path);
         return *this;
     }
@@ -347,12 +372,23 @@ namespace apathy {
     inline Path& Path::trim() {
         if (path.length() == 0) { return *this; }
 
-        size_t length = path.length();
-        for (size_t i = 1;
-            i <= length && path[length-i] == separator; ++i) {
-            path.erase(length-i);
+        size_t p = path.find_last_not_of(separator);
+        if (p != std::string::npos) {
+            path.erase(p + 1, path.size());
         }
         return *this;
+    }
+
+    /**************************************************************************
+     * Member Utility Methods
+     *************************************************************************/
+
+    /* Returns a vector of each of the path segments in this path */
+    inline std::vector<Path::Segment> Path::split() const {
+        std::stringstream stream(path);
+        std::istream_iterator<Path::Segment> start(stream);
+        std::istream_iterator<Path::Segment> end;
+        return std::vector<Path::Segment>(start, end);
     }
 
     /**************************************************************************
@@ -363,7 +399,7 @@ namespace apathy {
     }
 
     inline bool Path::trailing_slash() const {
-        return path.rfind(separator) == (path.length() - 1);
+        return path.size() && path[path.length() - 1] == separator;
     }
 
     inline bool Path::exists() const {
