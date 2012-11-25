@@ -31,6 +31,9 @@ namespace apathy {
         struct Segment {
             /* The actual string segment */
             std::string segment;
+
+            Segment(std::string s=""): segment(s) {}
+
             friend std::istream& operator>>(std::istream& stream, Segment& s) {
                 return std::getline(stream, s.segment, separator);
             }
@@ -43,7 +46,7 @@ namespace apathy {
         /* Default constructor
          *
          * Points to current directory */
-        Path(const std::string& path="."): path(path) {}
+        Path(const std::string& path=""): path(path) {}
 
         /* Our generalized constructor.
          *
@@ -87,6 +90,9 @@ namespace apathy {
 
         /* Return a string version of this path */
         std::string string() const { return path; }
+
+        /* Return the name of the file */
+        std::string filename() const;
 
         /**********************************************************************
          * Manipulations
@@ -196,6 +202,12 @@ namespace apathy {
          */
         static Path join(const Path& a, const Path& b);
 
+        /* Return a branch new path as the concatenation of each segments
+         *
+         * @param segments - the path segments to concatenate
+         */
+        static Path join(const std::vector<Segment>& segments);
+
         /* Current working directory */
         static Path cwd();
 
@@ -220,6 +232,11 @@ namespace apathy {
          *
          * @param p - path to list items for */
         static std::vector<Path> listdir(const Path& p);
+
+        /* So that we can write paths out to ostreams */
+        friend std::ostream& operator<<(std::ostream& stream, const Path& p) {
+            return stream << p.path;
+        }
     private:
         /* Our current path */
         std::string path;
@@ -252,6 +269,14 @@ namespace apathy {
                Path(other).absolute().sanitize();
     }
 
+    inline std::string Path::filename() const {
+        size_t pos = path.rfind(separator);
+        if (pos != std::string::npos) {
+            return path.substr(pos + 1);
+        }
+        return "";
+    }
+
     /**************************************************************************
      * Manipulators
      *************************************************************************/
@@ -278,10 +303,14 @@ namespace apathy {
     inline Path& Path::up() {
         /* Make sure we turn this into an absolute url if it's not already
          * one */
-        absolute().sanitize().trim();
-        size_t pos = path.rfind(separator);
-        if (pos != std::string::npos) {
-            path.erase(pos);
+        if (path.size() == 0) {
+            path = "..";
+            return directory();
+        }
+        
+        append("..").sanitize();
+        if (path.size() == 0) {
+            return *this;
         }
         return directory();
     }
@@ -298,68 +327,55 @@ namespace apathy {
     }
 
     inline Path& Path::sanitize() {
-        /* Now, strip all runs of separators */
-        size_t end = 0, pos = 0;
-        /* We're going to go through all the sections of the absolute path,
-         * and build up an ordered vector of all the segments. Then, we'll
-         * reassemble them into our own path */
-        std::vector<std::string> segments;
-        /* The current segment */
-        std::string segment;
-        while (pos != std::string::npos) {
-            /* Keep advancing while we're on a separator */
-            for (; end < path.length() && path[end] == separator; ++end) {}
-            /* End should now be either path.length(), or the first
-             * character after a separator */
-            if (end == path.length()) {
-                /* This indicates we've got a directory */
-                segments.push_back("");
-                break;
+        /* Split the path up into segments */
+        std::vector<Segment> segments(split());
+        /* We may have to test this repeatedly, so let's check once */
+        bool relative = !is_absolute();
+
+        /* Now, we'll create a new set of segments */
+        std::vector<Segment> pruned;
+        for (size_t pos = 0; pos < segments.size(); ++pos) {
+            /* Skip over empty segments and '.' */
+            if (segments[pos].segment.size() == 0 ||
+                segments[pos].segment == ".") {
+                continue;
             }
 
-            pos = path.find(separator, end);
-            if (pos == std::string::npos) {
-                segment = path.substr(end);
-            } else {
-                segment = path.substr(end, pos - end);
-            }
-
-            if (segment == "..") {
-                if (segments.size()) {
-                    /* Pop an item off of the segment vector, or not */
-                    segments.pop_back();
-                } else if (!is_absolute()) {
-                    /* If it's not an absolute path to begin with, then
-                     * we've exceeded our depth, and must make it an
-                     * absolute path */
-                    return absolute().sanitize();
+            /* If there is a '..', then pop off a parent directory. However, if
+             * the path was relative to begin with, if the '..'s exceed the
+             * stack depth, then they should be appended to our path. If it was
+             * absolute to begin with, and we reach root, then '..' has no
+             * effect */
+            if (segments[pos].segment == "..") {
+                if (relative) {
+                    if (pruned.size() && pruned.back().segment != "..") {
+                        pruned.pop_back();
+                    } else {
+                        pruned.push_back(segments[pos]);
+                    }
+                } else if (pruned.size()) {
+                    pruned.pop_back();
                 }
-            } else if (segment != ".") {
-                /* Add this to the segments */
-                segments.push_back(segment);
+                continue;
             }
 
-            end = pos + 1;
-        }
-
-        if (path.find(".") == 0) {
-            path = cwd().string();
-        } else if (is_absolute()) {
-            /* We always start at root */
-            path = std::string(1, separator);
-        } else {
-            path = "";
+            pruned.push_back(segments[pos]);
         }
         
-        /* Now, we'll go through the segments, and join them with
-         * separator */
-        for (pos = 0; pos < segments.size(); ++pos) {
-            path += segments[pos];
-            if (pos < segments.size() - 1) {
-                path += std::string(1, separator);
+        bool was_directory = trailing_slash();
+        if (!relative) {
+            path = std::string(1, separator) + Path::join(pruned).path;
+            if (was_directory) {
+                return directory();
             }
+            return *this;
         }
 
+        /* It was a relative path */
+        path = Path::join(pruned).path;
+        if (path.length() && was_directory) {
+            return directory();
+        }
         return *this;
     }
 
@@ -375,6 +391,8 @@ namespace apathy {
         size_t p = path.find_last_not_of(separator);
         if (p != std::string::npos) {
             path.erase(p + 1, path.size());
+        } else {
+            path = "";
         }
         return *this;
     }
@@ -388,7 +406,11 @@ namespace apathy {
         std::stringstream stream(path);
         std::istream_iterator<Path::Segment> start(stream);
         std::istream_iterator<Path::Segment> end;
-        return std::vector<Path::Segment>(start, end);
+        std::vector<Path::Segment> results(start, end);
+        if (trailing_slash()) {
+            results.push_back(Path::Segment(""));
+        }
+        return results;
     }
 
     /**************************************************************************
@@ -435,6 +457,20 @@ namespace apathy {
         Path p(a);
         p.append(b);
         return p;
+    }
+
+    inline Path Path::join(const std::vector<Segment>& segments) {
+        std::string path;
+        /* Now, we'll go through the segments, and join them with
+         * separator */
+        std::vector<Segment>::const_iterator it(segments.begin());
+        for(; it != segments.end(); ++it) {
+            path += it->segment;
+            if (it + 1 != segments.end()) {
+                path += std::string(1, separator);
+            }
+        }
+        return Path(path);
     }
 
     inline Path Path::cwd() {
@@ -562,6 +598,7 @@ namespace apathy {
             }
 
             errno = 0;
+            closedir(dir);
             return results;
         }
 }

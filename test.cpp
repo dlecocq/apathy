@@ -17,7 +17,7 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(cwd.is_absolute());
         REQUIRE(!empty.is_absolute());
         REQUIRE(empty.absolute() == cwd);
-        REQUIRE(Path() == ".");
+        REQUIRE(Path() == "");
     }
 
     SECTION("operator=", "Make sure assignment works as expected") {
@@ -81,7 +81,13 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(a.parent().string() == "/");
 
         a = Path("");
-        REQUIRE(a.parent() == Path::cwd().parent());
+        REQUIRE(a.parent() != Path::cwd().parent());
+        REQUIRE(a.parent().equivalent(Path::cwd().parent()));
+
+        a = Path("foo/bar");
+        REQUIRE(a.parent().parent() == "");
+        a = Path("foo/../bar/baz/a/../");
+        REQUIRE(a.parent() == "bar/");
     }
 
     SECTION("makedirs", "Make sure we recursively make directories") {
@@ -124,25 +130,22 @@ TEST_CASE("path", "Path functionality works as advertised") {
 
     SECTION("sanitize", "Make sure we can sanitize a path") {
         Path path("foo///bar/a/b/../c");
-        REQUIRE(path.sanitize().string() == "foo/bar/a/c");
+        REQUIRE(path.sanitize() == "foo/bar/a/c");
 
         path = "../foo///bar/a/b/../c";
-        REQUIRE(path.sanitize().string() == Path::cwd().parent(
-            ).append("foo").append("bar").append("a").append("c").string());
+        REQUIRE(path.sanitize() == "../foo/bar/a/c");
 
         path = "../../a/b////c";
-        REQUIRE(path.sanitize().string() == Path::cwd().parent().parent(
-            ).append("a").append("b").append("c").string());
+        REQUIRE(path.sanitize() == "../../a/b/c");
 
         path = "/../../a/b////c";
-        REQUIRE(path.sanitize().string() == "/a/b/c");
+        REQUIRE(path.sanitize() == "/a/b/c");
 
         path = "/./././a/./b/../../c";
-        REQUIRE(path.sanitize().string() == "/c");
+        REQUIRE(path.sanitize() == "/c");
 
         path = "././a/b/c/";
-        REQUIRE(path.sanitize().string() == Path::cwd().append("a").append(
-            "b").append("c").directory().string());
+        REQUIRE(path.sanitize() == "a/b/c/");
     }
 
     SECTION("equivalent", "Make sure equivalent paths work") {
@@ -162,5 +165,11 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(segments[0].segment == "foo");
         REQUIRE(segments[1].segment == "bar");
         REQUIRE(segments[2].segment == "baz");
+
+        a = Path("foo/bar/baz/");
+        REQUIRE(a.split().size() == 4);
+
+        a = Path("/foo/bar/baz/");
+        REQUIRE(a.split().size() == 5);
     }
 }
