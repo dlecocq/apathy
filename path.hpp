@@ -190,6 +190,12 @@ namespace apathy {
          * directory */
         bool is_directory() const;
 
+        /* How large is this file?
+         *
+         * Returns the file size in bytes. If the file doesn't exist, it
+         * returns 0 */
+        size_t size() const;
+
         /**********************************************************************
          * Static Utility Methods
          *********************************************************************/
@@ -460,6 +466,15 @@ namespace apathy {
             return false;
         } else {
             return S_ISDIR(buf.st_mode);
+        }
+    }
+
+    inline size_t Path::size() const {
+        struct stat buf;
+        if (stat(path.c_str(), &buf) != 0) {
+            return 0;
+        } else {
+            return buf.st_size;
         }
     }
 
