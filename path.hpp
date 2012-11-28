@@ -217,6 +217,19 @@ namespace apathy {
          * @param mode - mode to create with */
         static bool touch(const Path& p, mode_t mode=0777);
 
+        /* Move / rename a file
+         *
+         * @param source - original path
+         * @param dest - new path
+         * @param mkdirs - recursively make any needed directories? */
+        static bool move(const Path& source, const Path& dest,
+            bool mkdirs=false);
+
+        /* Remove a file
+         *
+         * @param path - path to remove */
+        static bool rm(const Path& path);
+
         /* Recursively make directories
          *
          * @param p - path to recursively make
@@ -504,6 +517,30 @@ namespace apathy {
             return false;
         }
 
+        return true;
+    }
+
+    inline bool Path::move(const Path& source, const Path& dest,
+        bool mkdirs) {
+        int result = rename(source.path.c_str(), dest.path.c_str());
+        if (result == 0) {
+            return true;
+        }
+
+        /* Otherwise, there was an error */
+        if (errno == ENOENT && mkdirs) {
+            makedirs(dest.parent());
+            return rename(source.path.c_str(), dest.path.c_str()) == 0;
+        }
+
+        return false;
+    }
+
+    inline bool Path::rm(const Path& path) {
+        if (remove(path.path.c_str()) != 0) {
+            perror("Remove");
+            return false;
+        }
         return true;
     }
 

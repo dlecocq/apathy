@@ -128,6 +128,43 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(!Path("foo").exists());
     }
 
+    SECTION("rm", "Make sure we can remove files we create") {
+        REQUIRE(!Path("foo").exists());
+        Path::touch("foo");
+        REQUIRE( Path("foo").exists());
+        Path::rm("foo");
+        REQUIRE(!Path("foo").exists());
+    }
+
+    SECTION("move", "Make sure we can move files / directories") {
+        /* We should be able to move it in the most basic case */
+        Path source("foo");
+        Path dest("bar");
+        REQUIRE(!source.exists());
+        REQUIRE(!  dest.exists());
+        Path::touch(source);
+
+        REQUIRE(Path::move(source, dest));
+        REQUIRE(!source.exists());
+        REQUIRE(   dest.exists());
+
+        REQUIRE(Path::rm(dest));
+        REQUIRE(!source.exists());
+        REQUIRE(!  dest.exists());
+
+        /* And now, when the directory doesn't exist */
+        dest = "bar/baz";
+        REQUIRE(!dest.parent().exists());
+        Path::touch(source);
+
+        REQUIRE(!Path::move(source, dest));
+        REQUIRE( Path::move(source, dest, true));
+        REQUIRE(!source.exists());
+        REQUIRE(   dest.exists());
+        Path::rmdirs("bar");
+        REQUIRE(!Path("bar").exists());
+    }
+
     SECTION("sanitize", "Make sure we can sanitize a path") {
         Path path("foo///bar/a/b/../c");
         REQUIRE(path.sanitize() == "foo/bar/a/c");
