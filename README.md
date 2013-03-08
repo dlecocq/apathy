@@ -128,6 +128,15 @@ Path("a/b/c").directory();
 Path("a/b/c/////").trim();
 ```
 
+Breaking It Down
+================
+There are a number of ways to get access to the various components of the path:
+
+- `filename` -- name of the file without any directories
+- `extension` -- get a string of the extension of the path (if any)
+- `stem` -- get a copy of the path without the extension
+- `split` -- each of the directories in the path
+
 Copiers
 =======
 While the modifiers change the instance itself and return a reference, some

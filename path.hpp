@@ -94,6 +94,12 @@ namespace apathy {
         /* Return the name of the file */
         std::string filename() const;
 
+        /* Return the extension of the file */
+        std::string extension() const;
+
+        /* Return a path object without the extension */
+        Path stem() const;
+
         /**********************************************************************
          * Manipulations
          *********************************************************************/
@@ -294,6 +300,30 @@ namespace apathy {
             return path.substr(pos + 1);
         }
         return "";
+    }
+
+    inline std::string Path::extension() const {
+        /* Make sure we only look in the filename, and not the path */
+        std::string name = filename();
+        size_t pos = name.rfind('.');
+        if (pos != std::string::npos) {
+            return name.substr(pos + 1);
+        }
+        return "";
+    }
+
+    inline Path Path::stem() const {
+        size_t sep_pos = path.rfind(separator);
+        size_t dot_pos = path.rfind('.');
+        if (dot_pos == std::string::npos) {
+            return Path(*this);
+        }
+
+        if (sep_pos == std::string::npos || sep_pos < dot_pos) {
+            return Path(path.substr(0, dot_pos));
+        } else {
+            return Path(*this);
+        }
     }
 
     /**************************************************************************

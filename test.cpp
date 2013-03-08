@@ -209,4 +209,29 @@ TEST_CASE("path", "Path functionality works as advertised") {
         a = Path("/foo/bar/baz/");
         REQUIRE(a.split().size() == 5);
     }
+
+    SECTION("extension", "Make sure we can accurately get th file extension") {
+        /* Works in a basic way */
+        REQUIRE(Path("foo/bar/baz.out").extension() == "out");
+        /* Gets the outermost extension */
+        REQUIRE(Path("foo/bar.baz.out").extension() == "out");
+        /* Doesn't take extensions from directories */
+        REQUIRE(Path("foo/bar.baz/out").extension() == "");
+    }
+
+    SECTION("stem", "Make sure we can get the path stem") {
+        /* Works in a basic way */
+        REQUIRE(Path("foo/bar/baz.out").stem() == Path("foo/bar/baz"));
+        /* Gets the outermost extension */
+        REQUIRE(Path("foo/bar.baz.out").stem() == Path("foo/bar.baz"));
+        /* Doesn't take extensions from directories */
+        REQUIRE(Path("foo/bar.baz/out").stem() == Path("foo/bar.baz/out"));
+
+        /* Can be used to successively pop off the extension */
+        Path a("foo.bar.baz.out");
+        a = a.stem(); REQUIRE(a == Path("foo.bar.baz"));
+        a = a.stem(); REQUIRE(a == Path("foo.bar"));
+        a = a.stem(); REQUIRE(a == Path("foo"));
+        a = a.stem(); REQUIRE(a == Path("foo"));
+    }
 }
