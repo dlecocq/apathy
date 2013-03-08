@@ -4,6 +4,7 @@
 /* C++ includes */
 #include <vector>
 #include <string>
+#include <cstring>
 #include <istream>
 #include <sstream>
 #include <iostream>
@@ -269,7 +270,7 @@ namespace apathy {
 
     /* Constructor */
     template <class T>
-    inline Path::Path(const T& p) {
+    inline Path::Path(const T& p): path("") {
         std::stringstream ss;
         ss << p;
         path = ss.str();
