@@ -1,3 +1,26 @@
+/******************************************************************************
+ * Copyright (c) 2013 Dan Lecocq
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *****************************************************************************/
+
 #ifndef APATHY__PATH_HPP
 #define APATHY__PATH_HPP
 
@@ -5,6 +28,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cstdlib>
 #include <istream>
 #include <sstream>
 #include <iostream>
@@ -591,99 +615,99 @@ namespace apathy {
     }
 
     inline bool Path::makedirs(const Path& p, mode_t mode) {
-            /* We need to make a copy of the path, that's an absolute path */
-            Path abs = Path(p).absolute();
+        /* We need to make a copy of the path, that's an absolute path */
+        Path abs = Path(p).absolute();
 
-            /* Now, we'll try to make the directory / ensure it exists */
+        /* Now, we'll try to make the directory / ensure it exists */
+        if (mkdir(abs.string().c_str(), mode) == 0) {
+            return true;
+        }
+
+        /* Otherwise, there was an error. There are some errors that
+         * may be recoverable */
+        if (errno == EEXIST) {
+            return abs.is_directory();
+        } else if(errno == ENOENT) {
+            /* We'll need to try to recursively make this directory. We
+             * don't need to worry about reaching the '/' path, and then
+             * getting to this point, because / always exists */
+            makedirs(abs.parent(), mode);
             if (mkdir(abs.string().c_str(), mode) == 0) {
                 return true;
-            }
-
-            /* Otherwise, there was an error. There are some errors that
-             * may be recoverable */
-            if (errno == EEXIST) {
-                return abs.is_directory();
-            } else if(errno == ENOENT) {
-                /* We'll need to try to recursively make this directory. We
-                 * don't need to worry about reaching the '/' path, and then
-                 * getting to this point, because / always exists */
-                makedirs(abs.parent(), mode);
-                if (mkdir(abs.string().c_str(), mode) == 0) {
-                    return true;
-                } else {
-                    perror("makedirs");
-                    return false;
-                }
             } else {
                 perror("makedirs");
+                return false;
             }
+        } else {
+            perror("makedirs");
+        }
 
-            /* If it's none of these cases, then it's one of unrecoverable
-             * errors described in mkdir(2) */
+        /* If it's none of these cases, then it's one of unrecoverable
+         * errors described in mkdir(2) */
+        return false;
+    }
+
+    inline bool Path::rmdirs(const Path& p, bool ignore_errors) {
+        /* If this path isn't a file, then complain */
+        if (!p.is_directory()) {
             return false;
         }
 
-        inline bool Path::rmdirs(const Path& p, bool ignore_errors) {
-            /* If this path isn't a file, then complain */
-            if (!p.is_directory()) {
-                return false;
+        /* First, we list out all the members of the path, and anything
+         * that's a directory, we rmdirs(...) it. If it's a file, then we
+         * remove it */
+        std::vector<Path> subdirs(listdir(p));
+        std::vector<Path>::iterator it(subdirs.begin());
+        for (; it != subdirs.end(); ++it) {
+            if (it->is_directory() && !rmdirs(*it) && !ignore_errors) {
+                std::cout << "Failed rmdirs " << it->string() << std::endl;
+            } else if (it->is_file() &&
+                remove(it->path.c_str()) != 0 && !ignore_errors) {
+                std::cout << "Failed remove " << it->string() << std::endl;
             }
-
-            /* First, we list out all the members of the path, and anything
-             * that's a directory, we rmdirs(...) it. If it's a file, then we
-             * remove it */
-            std::vector<Path> subdirs(listdir(p));
-            std::vector<Path>::iterator it(subdirs.begin());
-            for (; it != subdirs.end(); ++it) {
-                if (it->is_directory() && !rmdirs(*it) && !ignore_errors) {
-                    std::cout << "Failed rmdirs " << it->string() << std::endl;
-                } else if (it->is_file() &&
-                    remove(it->path.c_str()) != 0 && !ignore_errors) {
-                    std::cout << "Failed remove " << it->string() << std::endl;
-                }
-            }
-
-            /* Lastly, try to remove the directory itself */
-            bool result = (remove(p.path.c_str()) == 0);
-            errno = 0;
-            return result;
         }
 
-        /* List all the paths in a directory
-         *
-         * @param p - path to list items for */
-        inline std::vector<Path> Path::listdir(const Path& p) {
-            Path base(p);
-            base.absolute();
-            std::vector<Path> results;
-            DIR* dir = opendir(base.string().c_str());
-            if (dir == NULL) {
-                /* If there was an error, return an empty vector */
-                return results;
-            }
+        /* Lastly, try to remove the directory itself */
+        bool result = (remove(p.path.c_str()) == 0);
+        errno = 0;
+        return result;
+    }
 
-            /* Otherwise, go through everything */
-            for (dirent* ent = readdir(dir); ent != NULL; ent = readdir(dir)) {
-                Path cpy(base);
-
-                /* Skip the parent directory listing */
-                if (!strcmp(ent->d_name, "..")) {
-                    continue;
-                }
-
-                /* Skip the self directory listing */
-                if (!strcmp(ent->d_name, ".")) {
-                    continue;
-                }
-
-                cpy.relative(ent->d_name);
-                results.push_back(cpy);
-            }
-
-            errno = 0;
-            closedir(dir);
+    /* List all the paths in a directory
+     *
+     * @param p - path to list items for */
+    inline std::vector<Path> Path::listdir(const Path& p) {
+        Path base(p);
+        base.absolute();
+        std::vector<Path> results;
+        DIR* dir = opendir(base.string().c_str());
+        if (dir == NULL) {
+            /* If there was an error, return an empty vector */
             return results;
         }
+
+        /* Otherwise, go through everything */
+        for (dirent* ent = readdir(dir); ent != NULL; ent = readdir(dir)) {
+            Path cpy(base);
+
+            /* Skip the parent directory listing */
+            if (!strcmp(ent->d_name, "..")) {
+                continue;
+            }
+
+            /* Skip the self directory listing */
+            if (!strcmp(ent->d_name, ".")) {
+                continue;
+            }
+
+            cpy.relative(ent->d_name);
+            results.push_back(cpy);
+        }
+
+        errno = 0;
+        closedir(dir);
+        return results;
+    }
 }
 
 #endif

@@ -12,3 +12,7 @@ test: test.cpp path.hpp
 
 clean:
 	rm -rdf test
+
+install: test
+	mkdir -p /usr/local/include/apathy
+	cp path.hpp /usr/local/include/apathy/
