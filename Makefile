@@ -1,6 +1,8 @@
 CPP = g++
 CPPOPTS = -O3 -Wall -Werror -Werror=effc++ -g
 
+PREFIX ?= /usr/local/include
+
 all: test
 
 driver: driver.cpp path.hpp
@@ -14,5 +16,5 @@ clean:
 	rm -rdf test
 
 install: test
-	mkdir -p /usr/local/include/apathy
-	cp path.hpp /usr/local/include/apathy/
+	mkdir -p $(PREFIX)/apathy
+	cp path.hpp $(PREFIX)/apathy/
