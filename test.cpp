@@ -25,6 +25,7 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch.hpp>
+#include <algorithm>
 
 /* Internal libraries */
 #include "path.hpp"
@@ -141,12 +142,13 @@ TEST_CASE("path", "Path functionality works as advertised") {
         /* Now list that directory */
         std::vector<Path> files = Path::listdir(path);
         REQUIRE(files.size() == 3);
-        REQUIRE(files[0].absolute().string() ==
-            Path(path).absolute().append("a").string());
-        REQUIRE(files[1].absolute().string() ==
-            Path(path).absolute().append("b").string());
-        REQUIRE(files[2].absolute().string() ==
-            Path(path).absolute().append("c").string());
+        /* listdir doesn't enforce any ordering */
+        REQUIRE((std::find(files.begin(), files.end(), 
+            Path(path).absolute().append("a").string()) != files.end()));
+        REQUIRE((std::find(files.begin(), files.end(), 
+            Path(path).absolute().append("b").string()) != files.end()));
+        REQUIRE((std::find(files.begin(), files.end(), 
+            Path(path).absolute().append("c").string()) != files.end()));
 
         REQUIRE(Path::rmdirs("foo"));
         REQUIRE(!Path("foo").exists());
