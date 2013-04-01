@@ -35,6 +35,7 @@
 #include <iterator>
 
 /* C includes */
+#include <glob.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -282,6 +283,11 @@ namespace apathy {
          *
          * @param p - path to list items for */
         static std::vector<Path> listdir(const Path& p);
+
+        /* Returns all matching globs
+         *
+         * @param pattern - the glob pattern to match */
+        static std::vector<Path> glob(const std::string& pattern);
 
         /* So that we can write paths out to ostreams */
         friend std::ostream& operator<<(std::ostream& stream, const Path& p) {
@@ -706,6 +712,21 @@ namespace apathy {
 
         errno = 0;
         closedir(dir);
+        return results;
+    }
+
+    inline std::vector<Path> Path::glob(const std::string& pattern) {
+        /* First, we need a glob_t, and then we'll look at the results */
+        glob_t globbuf;
+        if (::glob(pattern.c_str(), 0, NULL, &globbuf) != 0) {
+            /* Then there was an error */
+            return std::vector<Path>();
+        }
+
+        std::vector<Path> results;
+        for (std::size_t i = 0; i < globbuf.gl_pathc; ++i) {
+            results.push_back(globbuf.gl_pathv[i]);
+        }
         return results;
     }
 }

@@ -260,4 +260,25 @@ TEST_CASE("path", "Path functionality works as advertised") {
         a = a.stem(); REQUIRE(a == Path("foo"));
         a = a.stem(); REQUIRE(a == Path("foo"));
     }
+
+    SECTION("glob", "Make sure glob works") {
+        /* We'll touch a bunch of files to work with */
+        Path::makedirs("foo");
+        Path::touch("foo/bar");
+        Path::touch("foo/bar2");
+        Path::touch("foo/bar3");
+        Path::touch("foo/baz");
+        Path::touch("foo/bazzy");
+        Path::touch("foo/foo");
+
+        /* Make sure we can get it to work in a few basic ways */
+        REQUIRE(Path::glob("foo/*"   ).size() == 6);
+        REQUIRE(Path::glob("foo/b*"  ).size() == 5);
+        REQUIRE(Path::glob("foo/baz*").size() == 2);
+        REQUIRE(Path::glob("foo/ba?" ).size() == 2);
+
+        /* Now, we should remove the directories, make sure it's gone. */
+        REQUIRE(Path::rmdirs("foo"));
+        REQUIRE(!Path("foo").exists());
+    }
 }
