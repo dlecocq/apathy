@@ -104,7 +104,7 @@ namespace apathy {
          * reference.
          *
          * @param segment - path segment to add to this path */
-        Path operator+(const Path& segment);
+        Path operator+(const Path& segment) const;
 
         /* Check if the two paths are equivalent
          *
@@ -313,7 +313,7 @@ namespace apathy {
         return append(segment);
     }
 
-    inline Path Path::operator+(const Path& segment) {
+    inline Path Path::operator+(const Path& segment) const {
         Path result(path);
         result.append(segment);
         return result;
