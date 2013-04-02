@@ -314,7 +314,7 @@ namespace apathy {
     }
 
     inline Path Path::operator+(const Path& segment) {
-        Path result;
+        Path result(path);
         result.append(segment);
         return result;
     }

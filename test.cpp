@@ -64,6 +64,11 @@ TEST_CASE("path", "Path functionality works as advertised") {
         REQUIRE(root.string() == "/hello/5/how/3.14/are");
     }
 
+    SECTION("operator+", "Make sure operator+ works correctly") {
+        Path root("foo/bar");
+        REQUIRE((root + "baz").string() == "foo/bar/baz");
+    }
+
     SECTION("trim", "Make sure trim actually strips off separators") {
         Path root("/hello/how/are/you////");
         REQUIRE(root.trim().string() == "/hello/how/are/you");
